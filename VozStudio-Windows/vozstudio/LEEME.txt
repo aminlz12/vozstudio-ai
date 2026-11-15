@@ -1,0 +1,16 @@
+VOZSTUDIO LOCAL - INSTALACION EN WINDOWS
+
+1. Instala Python 3.11 de https://www.python.org/downloads/ (marca Add Python to PATH).
+2. Descarga una voz española Piper desde https://huggingface.co/rhasspy/piper-voices/tree/main/es/es_ES
+   Ejemplo: es_ES-sharvard-medium (archivos es_ES-sharvard-medium.onnx y es_ES-sharvard-medium.onnx.json).
+   Coloca AMBOS archivos en la carpeta models (créala si no existe).
+   Nota: los modelos son de terceros; consulta su licencia y descripción antes de usarlos.
+3. Haz doble clic en INICIAR_WINDOWS.bat y espera a que termine la instalación inicial.
+4. Abre http://127.0.0.1:8000 en Chrome o Edge.
+5. Escribe el guion, elige la voz, genera, reproduce y descarga WAV.
+
+La síntesis funciona sin Internet una vez instaladas las dependencias y los modelos.
+La instalación inicial necesita Internet. No hay API de pago.
+Si Windows muestra error de Python, comprueba que tienes Python 3.11.
+Si el puerto 8000 está ocupado, cierra el programa que lo usa.
+Para cerrar el servidor, pulsa Ctrl+C en la ventana de comandos.
