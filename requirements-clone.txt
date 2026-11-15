@@ -1,0 +1,2 @@
+coqui-tts>=0.27,<1
+python-multipart>=0.0.9

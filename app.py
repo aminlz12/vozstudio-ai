@@ -1,9 +1,9 @@
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-import subprocess, sys, uuid
+import subprocess, sys, uuid, shutil, wave, threading
 
 ROOT = Path(__file__).resolve().parent
 MODEL_DIR = ROOT / 'models'
@@ -48,3 +48,40 @@ def audio(name:str):
     path=OUTPUT/name
     if not path.exists():raise HTTPException(404,'Archivo no encontrado')
     return FileResponse(path,media_type='audio/wav',filename='vozstudio-'+name)
+
+CLONE_LOCK = threading.Lock()
+@app.post('/api/clone')
+def clone(text: str = Form(..., min_length=1, max_length=6000), reference: UploadFile = File(...)):
+    if not reference.filename or not reference.filename.lower().endswith('.wav'):
+        raise HTTPException(400, 'Necesitas una referencia WAV.')
+    key = uuid.uuid4().hex
+    sample = OUTPUT / (key + '-reference.wav')
+    target = OUTPUT / (key + '.wav')
+    try:
+        with sample.open('wb') as f:
+            shutil.copyfileobj(reference.file, f)
+        if sample.stat().st_size > 12_000_000:
+            raise HTTPException(413, 'Máximo 12 MB.')
+        try:
+            with wave.open(str(sample)) as wav:
+                if wav.getframerate() < 16000 or wav.getnframes() == 0:
+                    raise ValueError('WAV vacío o frecuencia baja')
+        except (wave.Error, ValueError):
+            raise HTTPException(400, 'Se necesita WAV PCM de al menos 16 kHz.')
+        try:
+            from TTS.api import TTS
+            import torch
+        except ImportError:
+            raise HTTPException(503, 'Instala requirements-clone.txt primero.')
+        with CLONE_LOCK:
+            try:
+                engine = getattr(app.state, 'xtts_engine', None)
+                if engine is None:
+                    engine = TTS('tts_models/multilingual/multi-dataset/xtts_v2', gpu=torch.cuda.is_available())
+                    app.state.xtts_engine = engine
+                engine.tts_to_file(text=text, speaker_wav=str(sample), language='es', file_path=str(target))
+            except Exception as exc:
+                raise HTTPException(500, 'Error XTTS: ' + str(exc)[:300])
+        return {'url':'/api/audio/'+target.name, 'filename':'vozstudio-clon-'+target.name}
+    finally:
+        sample.unlink(missing_ok=True)
